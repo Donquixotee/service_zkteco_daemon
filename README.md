@@ -147,13 +147,27 @@ devices:
 
 ## Testing without hardware
 
-`tools/zk_simulator.py` feeds synthetic punches through the real poller, Odoo client and
-cursor store — everything except pyzk's device I/O.
+Two levels, neither of which needs a device.
+
+**Unit tests** cover the device layer using real pyzk `Attendance` objects, so the
+conversion, malformed-punch skipping and disconnect behaviour are verified without hardware:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+**`tools/zk_simulator.py`** feeds synthetic punches through the real poller, Odoo client and
+cursor store, exercising authentication, delivery, deduplication and the cursor:
 
 ```bash
 .venv/bin/python tools/zk_simulator.py --users 7,8 --days 1 --dry-run   # print only
 .venv/bin/python tools/zk_simulator.py --users 7,8 --days 1             # send to Odoo
 ```
+
+It replaces `read_punches` entirely, so it is a punch injector rather than a device
+simulator. **The pyzk wire protocol against real hardware is not covered by either.**
+Connecting to an actual device on the LAN remains a required acceptance step — that is where
+firmware quirks (`force_udp`, COMM keys, K40 behaviour) surface.
 
 ## Troubleshooting
 
