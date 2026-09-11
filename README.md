@@ -78,7 +78,13 @@ Biometric Devices → open the device:
 - Link every employee to their device user ID (*Import from Device* or the link wizard).
   **Punches from unlinked users are counted and logged, but not recorded.**
 
-## Agent installation (Windows)
+## Agent installation
+
+The agent is pure Python with no platform-specific code. It runs on **Windows, Linux or
+macOS** — only the service wrapper differs. Python 3.10+ and network access to the device on
+port 4370 are the only requirements.
+
+### Windows
 
 Requires Python 3.10+ and network access to the device on port 4370.
 
@@ -100,7 +106,7 @@ Verify before installing the service:
 
 Expect `Authenticated as uid=...` then a per-device line each cycle. Stop with Ctrl+C.
 
-### Run as a service with NSSM
+#### Run as a service with NSSM
 
 A scheduled task is not enough — the agent must restart after a power cut.
 
@@ -113,6 +119,39 @@ nssm start ZKTecoAgent
 ```
 
 Logs rotate under `logs\zkteco_agent.log` (5 MB, 5 files).
+
+### Linux
+
+```bash
+sudo useradd --system --home /opt/zkteco-agent zkteco
+sudo mkdir -p /opt/zkteco-agent
+sudo chown zkteco:zkteco /opt/zkteco-agent
+
+sudo -u zkteco git clone <repo> /opt/zkteco-agent
+cd /opt/zkteco-agent
+sudo -u zkteco python3 -m venv .venv
+sudo -u zkteco .venv/bin/pip install -r requirements.txt
+sudo -u zkteco cp .env.example .env && sudo -u zkteco nano .env
+```
+
+Verify in the foreground first:
+
+```bash
+sudo -u zkteco .venv/bin/python -m src.main
+```
+
+Then install the unit shipped in `deploy/zkteco-agent.service`:
+
+```bash
+sudo cp deploy/zkteco-agent.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now zkteco-agent
+sudo systemctl status zkteco-agent
+journalctl -u zkteco-agent -f
+```
+
+`Restart=always` covers crashes and reboots. Leave `ZK_LOG_FILE` unset on Linux to log to
+the journal instead of a file.
 
 ## Configuration
 
