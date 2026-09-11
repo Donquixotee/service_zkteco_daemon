@@ -1,0 +1,18 @@
+daemon:
+  poll_interval: 300
+  state_path: state.json
+
+odoo_rpc:
+  max_retries: 3
+  retry_delay: 2
+  timeout: 30
+
+devices:
+  - name: Main Entrance
+    serial_number: REPLACE_WITH_DEVICE_SERIAL
+    ip: 192.168.1.201
+    port: 4370
+    password: 0
+    timeout: 30
+    force_udp: false
+    ommit_ping: false
