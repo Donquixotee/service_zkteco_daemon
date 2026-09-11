@@ -88,17 +88,42 @@ port 4370 are the only requirements.
 
 Requires Python 3.10+ and network access to the device on port 4370.
 
+Prerequisites on the client PC:
+
+1. **Python 3.10+** from python.org — tick **"Add python.exe to PATH"** during install.
+2. **NSSM** from https://nssm.cc/download — extract `win64\nssm.exe` to `C:\nssm\nssm.exe`.
+3. The PC must reach the device on port 4370 and reach Odoo over HTTPS.
+
+Copy the repository to `C:\zkteco-agent`, then configure:
+
 ```powershell
 cd C:\zkteco-agent
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-
 copy .env.example .env
-notepad .env
-notepad config\daemon.yml
+notepad .env                  # ODOO_URL, ODOO_DB, ODOO_USER_LOGIN, ODOO_API_KEY
+notepad config\daemon.yml     # device ip, port and serial_number
 ```
 
-Verify before installing the service:
+**Run the preflight check before installing anything.** It verifies Odoo authentication,
+performs a real handshake with each device, and confirms the serial number matches a device
+record in Odoo:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python tools\preflight.py
+```
+
+Every line must say `PASS` before continuing. Then install the service:
+
+```powershell
+# from an Administrator PowerShell
+.\deploy\install-windows.ps1
+```
+
+The script creates the virtualenv, installs dependencies, disables sleep and hibernation,
+registers the service with auto-start and restart-on-failure, and starts it.
+
+To run in the foreground instead (useful while diagnosing):
 
 ```powershell
 .venv\Scripts\python -m src.main
@@ -106,19 +131,24 @@ Verify before installing the service:
 
 Expect `Authenticated as uid=...` then a per-device line each cycle. Stop with Ctrl+C.
 
-#### Run as a service with NSSM
-
-A scheduled task is not enough — the agent must restart after a power cut.
+#### Managing the service
 
 ```powershell
-nssm install ZKTecoAgent "C:\zkteco-agent\.venv\Scripts\python.exe" "-m" "src.main"
-nssm set ZKTecoAgent AppDirectory C:\zkteco-agent
-nssm set ZKTecoAgent Start SERVICE_AUTO_START
-nssm set ZKTecoAgent AppExit Default Restart
-nssm start ZKTecoAgent
+C:\nssm\nssm.exe status  ZKTecoAgent
+C:\nssm\nssm.exe restart ZKTecoAgent
+C:\nssm\nssm.exe stop    ZKTecoAgent
+Get-Content C:\zkteco-agent\logs\zkteco_agent.log -Wait -Tail 30
 ```
 
 Logs rotate under `logs\zkteco_agent.log` (5 MB, 5 files).
+
+**Two things that silently break an always-on Windows PC:**
+
+- **Sleep.** The install script disables standby and hibernation on AC power. If someone
+  re-enables them, the agent stops collecting while asleep. Punches stay on the device, so
+  nothing is lost, but attendance appears in bursts.
+- **Windows Update reboots.** The service auto-starts, so this is survivable — but confirm
+  `Startup type: Automatic` in `services.msc` after the first patch cycle.
 
 ### Linux
 
