@@ -44,3 +44,25 @@ def match_device_user(device_user_name, employee_index):
         if key in employee_index:
             return employee_index[key]
     return None
+
+
+def similarity(first, second):
+    from difflib import SequenceMatcher
+    left = ' '.join(sorted(normalize(first).split()))
+    right = ' '.join(sorted(normalize(second).split()))
+    if not left or not right:
+        return 0.0
+    return SequenceMatcher(None, left, right).ratio()
+
+
+def has_real_name(device_user):
+    name = normalize(device_user.get('name'))
+    return bool(name) and not name.replace(' ', '').isdigit() and not name.startswith('nn ')
+
+
+def suggest_device_users(employee_name, device_users, limit=3, threshold=0.6):
+    scored = [(similarity(employee_name, user['name']), user)
+              for user in device_users if has_real_name(user)]
+    scored = [entry for entry in scored if entry[0] >= threshold]
+    scored.sort(key=lambda entry: -entry[0])
+    return scored[:limit]

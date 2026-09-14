@@ -77,7 +77,7 @@ def diagnose(client, device):
 
 
 def looks_like_clean_user_id(value):
-    return value.isdigit() and len(value) <= 9
+    return value.isdigit()
 
 
 def scan_attendance(client):

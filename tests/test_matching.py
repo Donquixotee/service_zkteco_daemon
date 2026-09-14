@@ -57,3 +57,24 @@ class MatchTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SuggestionTest(unittest.TestCase):
+
+    def test_close_spelling_is_suggested(self):
+        from src.matching import suggest_device_users
+        users = [{'user_id': '203', 'name': 'AICHOUR YACINE'}, {'user_id': '9', 'name': 'BRINA MOHAMED'}]
+        best = suggest_device_users('AICHOUR YASSINE', users)
+        self.assertEqual(best[0][1]['user_id'], '203')
+
+    def test_numeric_and_no_name_users_are_never_suggested(self):
+        from src.matching import has_real_name
+        self.assertFalse(has_real_name({'name': '14'}))
+        self.assertFalse(has_real_name({'name': 'NN-1092632900'}))
+        self.assertFalse(has_real_name({'name': ''}))
+        self.assertTrue(has_real_name({'name': 'BELARBI YAMINA'}))
+
+    def test_unrelated_names_fall_below_threshold(self):
+        from src.matching import suggest_device_users
+        users = [{'user_id': '1', 'name': 'ZOUBIR KHALED'}]
+        self.assertEqual(suggest_device_users('AICHOUR YASSINE', users), [])
