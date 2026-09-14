@@ -93,3 +93,19 @@ class CollectLinksTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class GenderedSuggestionWarningTest(unittest.TestCase):
+
+    def test_gender_variant_suggestion_carries_a_warning_and_is_not_filled(self):
+        users = [{'user_id': '41', 'name': 'SAIDI KARIMA'}]
+        rows = build_report([{'id': 1, 'name': 'SAIDI KARIM'}], DEVICES,
+                            {'Entrance': users, 'Exit': users}, {'Entrance': {}, 'Exit': {}})
+        self.assertEqual(rows[0][column('Entrance', 'user_id')], '')
+        self.assertIn('CHECK: male/female form', rows[0][column('Entrance', 'suggestions')])
+
+    def test_spelling_variant_suggestion_carries_no_warning(self):
+        users = [{'user_id': '203', 'name': 'AICHOUR YACINE'}]
+        rows = build_report([{'id': 1, 'name': 'AICHOUR YASSINE'}], DEVICES,
+                            {'Entrance': users, 'Exit': users}, {'Entrance': {}, 'Exit': {}})
+        self.assertNotIn('CHECK', rows[0][column('Entrance', 'suggestions')])

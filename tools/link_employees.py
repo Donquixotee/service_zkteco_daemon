@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from src.device_client import device_connection
 from src.main import build_odoo_client, load_configuration
-from src.matching import index_employees, match_device_user, suggest_device_users
+from src.matching import differs_only_by_gendered_ending, index_employees, match_device_user, suggest_device_users
 
 LINK_MODEL = 'biometric.attendance.devices'
 DEVICE_MODEL = 'biometric.config'
@@ -76,7 +76,9 @@ def build_report(employees, devices, users_by_device, links_by_device):
             row[column(name, 'user_id')] = ''
             row[column(name, 'status')] = 'suggestions' if suggestions else 'not found on device'
             row[column(name, 'suggestions')] = ' | '.join(
-                '%s:%s (%.0f%%)' % (user['user_id'], user['name'], score * 100)
+                '%s:%s (%.0f%%)%s' % (user['user_id'], user['name'], score * 100,
+                                     ' [CHECK: male/female form, may be a different person]'
+                                     if differs_only_by_gendered_ending(employee['name'], user['name']) else '')
                 for score, user in suggestions)
         rows.append(row)
     return rows

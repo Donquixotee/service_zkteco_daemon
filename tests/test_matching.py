@@ -78,3 +78,20 @@ class SuggestionTest(unittest.TestCase):
         from src.matching import suggest_device_users
         users = [{'user_id': '1', 'name': 'ZOUBIR KHALED'}]
         self.assertEqual(suggest_device_users('AICHOUR YASSINE', users), [])
+
+
+class GenderedEndingTest(unittest.TestCase):
+
+    def test_flags_masculine_and_feminine_forms(self):
+        from src.matching import differs_only_by_gendered_ending
+        for first, second in (('SAIDI KARIM', 'SAIDI KARIMA'), ('BELKACEM ALI', 'BELKACEM ALIA'),
+                              ('HADJ MOHAMED AMINE', 'HADJ MOHAMED AMINA'),
+                              ('SAIDI YASMINE', 'SAIDI YASMINA'), ('SAIDI NABILA', 'SAIDI NABIL')):
+            self.assertTrue(differs_only_by_gendered_ending(first, second), (first, second))
+
+    def test_does_not_flag_spelling_variants(self):
+        from src.matching import differs_only_by_gendered_ending
+        for first, second in (('AICHOUR YASSINE', 'AICHOUR YACINE'),
+                              ('BOUCHAMA MOHAMED AYMEN', 'BOUCHAMA MOHAMED AIMEN'),
+                              ('BENZERROUK FATIHA', 'BENZEROUK FATIHA')):
+            self.assertFalse(differs_only_by_gendered_ending(first, second), (first, second))

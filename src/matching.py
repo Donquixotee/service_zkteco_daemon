@@ -66,3 +66,21 @@ def suggest_device_users(employee_name, device_users, limit=3, threshold=0.6):
     scored = [entry for entry in scored if entry[0] >= threshold]
     scored.sort(key=lambda entry: -entry[0])
     return scored[:limit]
+
+
+def _feminine_form(masculine, feminine):
+    if masculine + 'a' == feminine:
+        return True
+    return masculine.endswith('e') and masculine[:-1] + 'a' == feminine
+
+
+def differs_only_by_gendered_ending(first, second):
+    left = sorted(normalize(first).split())
+    right = sorted(normalize(second).split())
+    if len(left) != len(right):
+        return False
+    differences = [(a, b) for a, b in zip(left, right) if a != b]
+    if len(differences) != 1:
+        return False
+    a, b = differences[0]
+    return _feminine_form(a, b) or _feminine_form(b, a)
