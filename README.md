@@ -69,6 +69,10 @@ From the user's **Account Security → New API Key**.
 
 Biometric Devices → open the device:
 
+- Set **Punch Direction**. `Alternate` suits a single device used for both entering and
+  leaving. With **separate entrance and exit readers**, set the entrance to `Always Check In`
+  and the exit to `Always Check Out` — otherwise punches alternate per device and a person who
+  enters on three consecutive days is recorded as in, out, in.
 - Set **Connection Mode** to `Remote Agent`. The download cron then skips this device
   instead of failing against an unreachable IP every 5 minutes.
 - Fill **Serial Number** — this is how the agent identifies the device. If empty, connect once
@@ -237,6 +241,14 @@ It replaces `read_punches` entirely, so it is a punch injector rather than a dev
 simulator. **The pyzk wire protocol against real hardware is not covered by either.**
 Connecting to an actual device on the LAN remains a required acceptance step — that is where
 firmware quirks (`force_udp`, COMM keys, K40 behaviour) surface.
+
+## Field deployment
+
+`docs/FIELD_TEST.md` is a step-by-step runbook for commissioning a site over remote access:
+recon, read-only device probe, Odoo configuration, first controlled sync, then service install.
+
+`tools/device_probe.py` inspects the devices without writing anything — serial, model,
+firmware, device clock, user list and punch count. Run it before anything else on a new site.
 
 ## Troubleshooting
 

@@ -8,9 +8,26 @@ odoo_rpc:
   timeout: 30
 
 devices:
-  - name: Main Entrance
+  - name: Entrance
     serial_number: REPLACE_WITH_DEVICE_SERIAL
     ip: 192.168.1.201
+    port: 4370
+    password: 0
+    timeout: 30
+    force_udp: false
+    ommit_ping: false
+
+  - name: Exit
+    serial_number: REPLACE_WITH_DEVICE_SERIAL
+    ip: 192.168.1.200
+    port: 4370
+    password: 0
+    timeout: 30
+    force_udp: false
+    ommit_ping: false
+  - name: Side Entrance
+    serial_number: REPLACE_WITH_DEVICE_SERIAL
+    ip: 192.168.1.202
     port: 4370
     password: 0
     timeout: 30
