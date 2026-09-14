@@ -39,31 +39,49 @@ and offboarding still require Odoo to reach the device directly.
 
 ### 2. Create the agent user
 
-Settings → Users. Create a dedicated user, for example `zkteco.agent`:
+Settings → Users & Companies → **Users → New**:
 
-- Must have **Attendances / Administrator** (`hr_attendance.group_hr_attendance_manager`).
-  Without it every punch is silently rejected by the access rules.
-- Must be allocated to the **company that owns the device**. The module's record rules filter
-  on company; a mismatch produces zero attendance with no error.
-- Do not reuse a human's account. Attendance records will be attributed to this user.
+- **Name** `ZKTeco Agent`, **Email / login** `zkteco.agent`
+- Under **Access Rights**, set **Attendances** to **Administrator**
+  (`hr_attendance.group_hr_attendance_manager`). Without it every punch is silently rejected
+  by the access rules.
+- Set **Company** to the company that owns the devices, and tick it under **Allowed
+  Companies**. The module's record rules filter on company; a mismatch produces zero
+  attendance with no error.
+- Leave it as an *Internal User*. Do not reuse a human's account — attendance records are
+  attributed to whoever the agent authenticates as.
 
 ### 3. Generate an API key
 
-From the user's **Account Security → New API Key**.
+**Odoo 18 caps self-service API keys** at the duration allowed by the creating user's groups —
+90 days by default. When the key expires the agent stops delivering and nothing in Odoo
+explains why, so do not leave it on the default. Pick one:
 
-> **Important:** Odoo 18 caps self-service API keys at the duration allowed by the user's
-> groups (90 days by default). A key that expires stops attendance silently. For a permanent
-> key, generate it from an administrator session, or run in `odoo shell`:
->
-> ```python
-> user = env['res.users'].search([('login', '=', 'zkteco.agent')], limit=1)
-> key = env['res.users.apikeys'].with_user(user).sudo()._generate('rpc', 'zkteco agent key', None)
-> print(key)
-> env.cr.commit()
-> ```
->
-> The `.sudo()` is what allows an expiration of `None`. `with_user()` is what makes the key
-> belong to the agent instead of the administrator.
+**Option A — raise the cap for the group, then use the UI.** No server access needed.
+
+1. Enable developer mode.
+2. Settings → Users & Companies → **Groups** → open *Attendances / Administrator*.
+3. Set **API Keys maximum duration days** to e.g. `3650`, save.
+4. Log in **as `zkteco.agent`** → avatar → **My Profile → Account Security → New API Key**,
+   pick a long duration, copy the key.
+
+**Option B — a key with no expiry at all**, from `odoo shell` on the server:
+
+```python
+user = env['res.users'].search([('login', '=', 'zkteco.agent')], limit=1)
+key = env['res.users.apikeys'].with_user(user).sudo()._generate('rpc', 'zkteco agent key', None)
+print(key)
+env.cr.commit()
+```
+
+`.sudo()` is what permits an expiration of `None`; `with_user()` is what makes the key belong
+to the agent rather than to the administrator running the shell.
+
+**Option C — accept 90 days** and diarise the rotation. Not recommended: the failure is
+silent and lands on a client site.
+
+The key is displayed **once**. Copy it straight into `.env`. Each Odoo database issues its own
+keys — a key from a test database will not authenticate against production.
 
 ### 4. Configure the device record
 
