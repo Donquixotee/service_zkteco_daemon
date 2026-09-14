@@ -48,6 +48,41 @@ firmwares — that is exactly what `ommit_ping` is for.
 > If `ipconfig` shows the PC on a different subnet (192.168.0.x, 10.x.x.x), stop. With no
 > gateway on the readers, nothing will work until the PC is on `192.168.1.0/24`.
 
+## Phase 1b — Install Python if it is missing
+
+If `python --version` answers with *"Python est introuvable"* / *"Python was not found"* and
+mentions the Microsoft Store, Python is **not installed** — that message comes from a Windows
+stub alias, not from Python.
+
+**Do not install from the Microsoft Store.** The Store build is sandboxed per user and its
+paths are awkward for a Windows service. Use the official installer:
+
+1. Download the **Windows installer (64-bit)** for Python 3.12 from
+   https://www.python.org/downloads/windows/
+2. On the first screen of the installer, tick **both**:
+   - **Install launcher for all users**
+   - **Add python.exe to PATH**
+3. Choose **Customize installation → Next → tick "Install for all users"**, which puts it in
+   `C:\Program Files\Python312`. This matters: the agent runs as a Windows service, and a
+   per-user install under `AppData` is awkward for a service account to reach.
+4. Close and reopen PowerShell, then confirm:
+
+```powershell
+python --version
+where.exe python
+```
+
+`where.exe python` must show the real path, not `WindowsApps`. If it still shows
+`WindowsApps\python.exe`, turn off the stub:
+**Settings → Apps → Advanced app settings → App execution aliases**, and switch off
+**python.exe** and **python3.exe**.
+
+No internet on the client PC? Download the installer on your own machine and copy it over
+AnyDesk's file transfer. You will also need the wheels for `pyzk`, `PyYAML` and
+`python-dotenv` — run `pip download -r requirements.txt -d wheels` on a connected machine,
+copy the `wheels` folder, and install with
+`.venv\Scripts\pip install --no-index --find-links wheels -r requirements.txt`.
+
 ## Phase 2 — Install the agent, do not start the service yet
 
 ```powershell
@@ -138,8 +173,32 @@ Create **two** device records in `biometric.config`:
 `Device IP` is ignored in agent mode but is still a required field. `Serial Number` is what
 actually links the agent to the record.
 
-Then link every employee to their device `user_id`, **on both devices** — an employee needs a
-link row per device or their exit punches are discarded.
+### Linking employees in bulk
+
+With a large staff list, do not create links by hand — an employee needs one link row **per
+device**, so 122 employees across two readers is 244 rows.
+
+On the client PC, once the device serials are in both `daemon.yml` and Odoo:
+
+```powershell
+.venv\Scripts\python tools\link_employees.py
+```
+
+This reads the user list from each device, pulls the active employees from Odoo, matches them
+by name — ignoring case, accents, punctuation, word order and the device's 24-character
+truncation — and writes `employee_links.csv` **without changing anything**.
+
+Review that file. Rows marked `no match, map by hand` or `device user has no name` need an
+`employee_id` filled in; you can find the id in Odoo's URL when the employee form is open.
+Employees sharing an identical name are deliberately left unmatched rather than guessed.
+
+Then apply it:
+
+```powershell
+.venv\Scripts\python tools\link_employees.py --from-csv employee_links.csv
+```
+
+Rows already linked are skipped, so it is safe to re-run after correcting the CSV.
 
 ## Phase 5 — Preflight
 
