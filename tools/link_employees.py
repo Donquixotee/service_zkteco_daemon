@@ -55,8 +55,7 @@ def column(device_name, suffix):
 def build_report(employees, devices, users_by_device, links_by_device):
     rows = []
     for employee in sorted(employees, key=lambda item: item['name']):
-        row = {'employee_id': employee['id'], 'employee_name': employee['name'],
-               'barcode': employee.get('barcode') or ''}
+        row = {'employee_id': employee['id'], 'employee_name': employee['name']}
         for device in devices:
             name = device['name']
             users = users_by_device[name]
@@ -84,7 +83,7 @@ def build_report(employees, devices, users_by_device, links_by_device):
 
 
 def fieldnames(devices):
-    names = ['employee_id', 'employee_name', 'barcode']
+    names = ['employee_id', 'employee_name']
     for device in devices:
         names += [column(device['name'], 'user_id'), column(device['name'], 'status'),
                   column(device['name'], 'suggestions')]
@@ -171,7 +170,7 @@ def main():
         return 0
 
     employees = odoo.call('hr.employee', 'search_read', args=[[('active', '=', True)]],
-                          kwargs={'fields': ['id', 'name', 'barcode']})
+                          kwargs={'fields': ['id', 'name']})
     users_by_device = {device['name']: read_device_users(device) for device in devices}
     links_by_device = {device['name']: existing_links_by_employee(odoo, device_ids[device['name']])
                        for device in devices}
