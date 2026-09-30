@@ -153,6 +153,21 @@ To run in the foreground instead (useful while diagnosing):
 
 Expect `Authenticated as uid=...` then a per-device line each cycle. Stop with Ctrl+C.
 
+#### Without NSSM
+
+If NSSM is not available on the machine, `deploy\install-task.ps1` registers the agent as a
+Windows scheduled task instead. It checks the virtualenv and configuration, runs the preflight
+check and refuses to install if it fails, disables sleep, then registers a task that starts at
+boot as SYSTEM and restarts every minute if the agent exits.
+
+```powershell
+# Administrator PowerShell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\deploy\install-task.ps1
+```
+
+Remove it again with `.\deploy\install-task.ps1 -Remove`.
+
 #### Managing the service
 
 ```powershell
