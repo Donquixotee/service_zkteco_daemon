@@ -34,6 +34,19 @@ def describe(client, device):
     if len(users) > 10:
         print('      ... %s more' % (len(users) - 10))
 
+    try:
+        templates = client.get_templates() or []
+        by_user = {}
+        for template in templates:
+            by_user[str(template.uid)] = by_user.get(str(template.uid), 0) + 1
+        print('  %-14s %s templates across %s users' % ('Fingerprints:', len(templates), len(by_user)))
+        print('  %-14s %s' % ('Users w/o FP:', len(users) - len(by_user)))
+    except Exception as error:
+        print('  %-14s unavailable (%s)' % ('Fingerprints:', error))
+
+    cards = [user for user in users if getattr(user, 'card', 0)]
+    print('  %-14s %s of %s users have a card number' % ('Cards:', len(cards), len(users)))
+
     punches = client.get_attendance() or []
     print('  %-14s %s' % ('Punches:', len(punches)))
     if punches:
