@@ -75,3 +75,26 @@ def _names_colliding_after_truncation(assignments):
         else:
             seen[key] = assignment['employee_name']
     return collisions
+
+
+def propose_badge_numbers(employees, taken_barcodes, start):
+    reserved = {str(value).strip() for value in taken_barcodes if str(value).strip()}
+    numeric_reserved = {int(value) for value in reserved if value.isdigit()}
+    proposals = []
+    candidate = start
+    for employee in sorted(employees, key=lambda item: item['name']):
+        current = (employee.get('barcode') or '').strip()
+        if usable_barcode(current):
+            proposals.append({'employee_id': employee['id'], 'employee_name': employee['name'],
+                              'current_barcode': current, 'proposed_barcode': '',
+                              'status': 'keeps existing badge'})
+            continue
+        while candidate in numeric_reserved:
+            candidate += 1
+        numeric_reserved.add(candidate)
+        proposals.append({'employee_id': employee['id'], 'employee_name': employee['name'],
+                          'current_barcode': current,
+                          'proposed_barcode': str(candidate),
+                          'status': 'unusable badge, replace' if current else 'no badge'})
+        candidate += 1
+    return proposals

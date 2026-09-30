@@ -83,3 +83,44 @@ class AssignPinsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ProposeBadgeNumbersTest(unittest.TestCase):
+
+    def employees(self):
+        return [
+            {'id': 1, 'name': 'A ONE', 'barcode': '105'},
+            {'id': 2, 'name': 'B TWO', 'barcode': ''},
+            {'id': 3, 'name': 'C THREE', 'barcode': None},
+            {'id': 4, 'name': 'D FOUR', 'barcode': 'ABC'},
+        ]
+
+    def proposals(self, taken=('105', '1323')):
+        from src.provisioning import propose_badge_numbers
+        return {item['employee_name']: item for item in
+                propose_badge_numbers(self.employees(), taken, start=1323)}
+
+    def test_employees_with_a_usable_badge_are_untouched(self):
+        self.assertEqual(self.proposals()['A ONE']['proposed_barcode'], '')
+
+    def test_missing_badges_get_a_number(self):
+        self.assertEqual(self.proposals()['B TWO']['proposed_barcode'], '1324')
+
+    def test_reserved_numbers_are_skipped(self):
+        self.assertNotIn('1323', [item['proposed_barcode'] for item in self.proposals().values()])
+
+    def test_non_numeric_badge_is_flagged_and_replaced(self):
+        proposal = self.proposals()['D FOUR']
+        self.assertEqual(proposal['status'], 'unusable badge, replace')
+        self.assertTrue(proposal['proposed_barcode'])
+
+    def test_every_proposal_is_unique(self):
+        proposed = [item['proposed_barcode'] for item in self.proposals().values() if item['proposed_barcode']]
+        self.assertEqual(len(proposed), len(set(proposed)))
+
+    def test_inactive_employee_barcodes_are_respected(self):
+        from src.provisioning import propose_badge_numbers
+        proposals = propose_badge_numbers(self.employees(), ['1323', '1324', '1325'], start=1323)
+        assigned = [item['proposed_barcode'] for item in proposals if item['proposed_barcode']]
+        self.assertNotIn('1324', assigned)
+        self.assertNotIn('1325', assigned)
