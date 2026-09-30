@@ -1,7 +1,7 @@
 import logging
 from contextlib import contextmanager
 
-from zk import ZK
+from zk import ZK, const
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +10,18 @@ DEVICE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 class DeviceUnreachable(Exception):
     pass
+
+
+class DeviceWipeFailed(Exception):
+    pass
+
+
+def clear_all_data(client):
+    response = client._ZK__send_command(const.CMD_CLEAR_DATA, b'')
+    if not response.get('status'):
+        raise DeviceWipeFailed('Device refused to clear its data: %s' % response)
+    client.next_uid = 1
+    return True
 
 
 @contextmanager

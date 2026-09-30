@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
 
-from src.device_client import device_connection
+from src.device_client import clear_all_data, device_connection
 from src.main import load_configuration
 from src.odoo_client import OdooClient
 from src.provisioning import assign_pins
@@ -47,8 +47,9 @@ def backup_device(client, device, directory):
 
 def network_snapshot(client):
     try:
-        ip, mask, gateway = client.get_network_params()
-        return {'ip': ip, 'netmask': mask, 'gateway': gateway}
+        params = client.get_network_params() or {}
+        return {'ip': params.get('ip'), 'mask': params.get('mask'),
+                'gateway': params.get('gateway')}
     except Exception as error:
         return {'error': str(error)}
 
@@ -58,7 +59,7 @@ def describe_network(label, snapshot):
         print('    %-16s unavailable (%s)' % (label, snapshot['error']))
     else:
         print('    %-16s ip=%s mask=%s gateway=%s'
-              % (label, snapshot['ip'], snapshot['netmask'], snapshot['gateway']))
+              % (label, snapshot['ip'], snapshot['mask'], snapshot['gateway']))
 
 
 def push_assignments(client, assignments):
@@ -168,7 +169,7 @@ def main():
                 describe_network('network before', before)
                 backup_device(client, device, arguments.backup_dir)
                 if arguments.wipe:
-                    client.clear_data()
+                    clear_all_data(client)
                     print('    device erased')
                     after = network_snapshot(client)
                     describe_network('network after', after)

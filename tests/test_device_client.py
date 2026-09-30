@@ -84,3 +84,55 @@ class DeviceClientTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ClearAllDataTest(unittest.TestCase):
+
+    def test_sends_bytes_so_the_packet_can_be_built(self):
+        from struct import pack
+        from src.device_client import clear_all_data
+        sent = {}
+
+        class Stub:
+            next_uid = 99
+
+            def _ZK__send_command(self, command, command_string):
+                sent['command'] = command
+                sent['payload'] = command_string
+                pack('<4H', command, 0, 1, 2) + command_string
+                return {'status': True}
+
+        clear_all_data(Stub())
+        self.assertIsInstance(sent['payload'], bytes)
+        self.assertEqual(sent['command'], 14)
+
+    def test_resets_the_next_uid_so_users_start_at_one(self):
+        from src.device_client import clear_all_data
+
+        class Stub:
+            next_uid = 801
+
+            def _ZK__send_command(self, command, command_string):
+                return {'status': True}
+
+        stub = Stub()
+        clear_all_data(stub)
+        self.assertEqual(stub.next_uid, 1)
+
+    def test_refusal_raises_instead_of_reporting_success(self):
+        from src.device_client import DeviceWipeFailed, clear_all_data
+
+        class Stub:
+            next_uid = 5
+
+            def _ZK__send_command(self, command, command_string):
+                return {'status': False, 'code': 0}
+
+        with self.assertRaises(DeviceWipeFailed):
+            clear_all_data(Stub())
+
+    def test_pyzk_clear_data_is_still_broken_so_we_keep_our_own(self):
+        import zk.base
+        import inspect
+        source = inspect.getsource(zk.base.ZK.clear_data)
+        self.assertIn("command_string = ''", source)

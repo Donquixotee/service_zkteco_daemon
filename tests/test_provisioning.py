@@ -124,3 +124,28 @@ class ProposeBadgeNumbersTest(unittest.TestCase):
         assigned = [item['proposed_barcode'] for item in proposals if item['proposed_barcode']]
         self.assertNotIn('1324', assigned)
         self.assertNotIn('1325', assigned)
+
+
+class NetworkSnapshotTest(unittest.TestCase):
+
+    def test_reads_the_dict_pyzk_returns_not_a_tuple(self):
+        sys_path_guard = __import__('sys')
+        sys_path_guard.path.insert(0, '.')
+        from tools.provision_devices import network_snapshot
+
+        class Stub:
+            def get_network_params(self):
+                return {'ip': '192.168.1.201', 'mask': '255.255.255.0', 'gateway': '0.0.0.0'}
+
+        snapshot = network_snapshot(Stub())
+        self.assertEqual(snapshot['ip'], '192.168.1.201')
+        self.assertEqual(snapshot['mask'], '255.255.255.0')
+
+    def test_failure_is_captured_not_raised(self):
+        from tools.provision_devices import network_snapshot
+
+        class Stub:
+            def get_network_params(self):
+                raise OSError('timed out')
+
+        self.assertIn('error', network_snapshot(Stub()))
