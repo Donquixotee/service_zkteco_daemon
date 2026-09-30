@@ -149,3 +149,24 @@ class NetworkSnapshotTest(unittest.TestCase):
                 raise OSError('timed out')
 
         self.assertIn('error', network_snapshot(Stub()))
+
+
+class NextFreeUidTest(unittest.TestCase):
+
+    def uid_of(self, users):
+        from tools.add_employee import next_free_uid
+
+        class StubUser:
+            def __init__(self, uid):
+                self.uid = uid
+
+        return next_free_uid([StubUser(uid) for uid in users])
+
+    def test_continues_after_the_highest_existing_uid(self):
+        self.assertEqual(self.uid_of([1, 2, 3, 195]), 196)
+
+    def test_does_not_reuse_a_gap(self):
+        self.assertEqual(self.uid_of([1, 2, 50]), 51)
+
+    def test_empty_reader_starts_at_one(self):
+        self.assertEqual(self.uid_of([]), 1)

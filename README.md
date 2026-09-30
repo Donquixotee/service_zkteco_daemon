@@ -275,6 +275,29 @@ simulator. **The pyzk wire protocol against real hardware is not covered by eith
 Connecting to an actual device on the LAN remains a required acceptance step — that is where
 firmware quirks (`force_udp`, COMM keys, K40 behaviour) surface.
 
+## Adding an employee later
+
+Enrolling someone on a reader does **not** create them in Odoo. Punches from a device user who
+is not linked to an employee are counted, logged and discarded. The order is always:
+
+1. Create the employee in Odoo
+2. Give them a badge number (`tools/assign_badges.py`)
+3. Push them to the readers with **`tools/add_employee.py`**
+4. They enrol a fingerprint at each reader
+
+```powershell
+.venv\Scripts\python tools\add_employee.py --login <admin> --name "NEW EMPLOYEE"
+.venv\Scripts\python tools\add_employee.py --login <admin> --name "NEW EMPLOYEE" --apply
+```
+
+It appends the person at the next free uid and leaves everyone else untouched.
+
+**Never re-run `provision_devices.py` on readers people have already enrolled on.** It assigns
+uids by alphabetical position, and fingerprint templates are stored against the uid, so adding
+one name near the start of the alphabet shifts everybody after it and their fingerprints end up
+on the wrong people. The tool now refuses to do this unless `--wipe` or `--force-renumber` is
+given.
+
 ## Field deployment
 
 `docs/FIELD_TEST.md` is a step-by-step runbook for commissioning a site over remote access:

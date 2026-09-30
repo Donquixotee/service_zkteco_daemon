@@ -106,6 +106,9 @@ def parse_arguments():
                         help='Erase all users, fingerprints and logs on the reader first')
     parser.add_argument('--apply', action='store_true',
                         help='Actually write to the readers. Without it nothing is changed.')
+    parser.add_argument('--force-renumber', action='store_true',
+                        help='Allow rewriting every user on a populated reader. This reassigns uids '
+                             'and detaches existing fingerprints. Only for a reader you are wiping.')
     return parser.parse_args()
 
 
@@ -158,6 +161,18 @@ def main():
         if input('Type %s to continue: ' % CONFIRMATION_WORD).strip() != CONFIRMATION_WORD:
             print('Aborted.')
             return 1
+
+    if not arguments.wipe and not arguments.force_renumber:
+        for device in devices:
+            with device_connection(device) as client:
+                populated = len(client.get_users() or [])
+            if populated:
+                print('\n%s already holds %s users.' % (device['name'], populated))
+                print('Rewriting them all would reassign uids, and fingerprints are stored against')
+                print('the uid, so enrolled fingers would end up on the wrong people.')
+                print('To add or update one person use tools/add_employee.py instead.')
+                print('If you really mean to renumber this reader, pass --force-renumber.')
+                return 1
 
     for device in devices:
         print('\n=== %s ===' % device['name'])
