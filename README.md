@@ -277,12 +277,16 @@ firmware quirks (`force_udp`, COMM keys, K40 behaviour) surface.
 
 ## Adding an employee later
 
-**HR only creates the employee in Odoo.** Nothing else is required of them:
+**HR creates the employee in Odoo and fills in their Badge ID.** Nothing else is required:
 
-1. A badge number is assigned automatically on creation, continuing from the highest in use
+1. HR enters the badge number on the employee, as they do today
 2. Each cycle the agent asks Odoo which employees are missing from its readers
 3. It writes them at the next free uid and reports back, and Odoo records the link
 4. The person enrols a fingerprint at each reader
+
+The employee form shows a **Biometric Status**: *Needs a badge number*, *Waiting to be sent*,
+*On some readers* or *On all readers*, so HR can see whether somebody has reached the readers
+without asking anyone. An employee with no badge number is never written to a reader.
 
 Nobody runs a command, and enrolling someone on a reader still never creates them in Odoo:
 punches from an unlinked device user are counted, logged and discarded.
