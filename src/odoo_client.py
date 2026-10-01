@@ -71,3 +71,11 @@ class OdooClient:
     def send_punches(self, serial_number, punches):
         return self.call(RECEIVE_PUNCHES_MODEL, RECEIVE_PUNCHES_METHOD,
                          kwargs={'serial_number': serial_number, 'punches': punches})
+
+    def pending_users(self, serial_number):
+        return self.call(RECEIVE_PUNCHES_MODEL, 'action_pending_device_users',
+                         kwargs={'serial_number': serial_number})
+
+    def confirm_users(self, serial_number, results):
+        return self.call(RECEIVE_PUNCHES_MODEL, 'action_confirm_device_users',
+                         kwargs={'serial_number': serial_number, 'results': results})

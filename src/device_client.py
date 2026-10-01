@@ -46,6 +46,39 @@ def device_connection(device):
                 logger.debug("Unclean disconnect from %s: %s", device['name'], error)
 
 
+def next_free_uid(users):
+    return max((int(user.uid) for user in users), default=0) + 1
+
+
+def write_users(device, people):
+    written = []
+    with device_connection(device) as client:
+        existing = client.get_users() or []
+        uid_by_pin = {str(user.user_id): int(user.uid) for user in existing}
+        candidate_uid = next_free_uid(existing)
+        client.disable_device()
+        try:
+            for person in people:
+                pin = str(person['pin'])
+                uid = uid_by_pin.get(pin, candidate_uid)
+                try:
+                    client.set_user(uid=uid, name=person['name'], privilege=0,
+                                    password='', group_id='', user_id=pin, card=0)
+                except Exception as error:
+                    logger.error("Could not write %s to %s: %s", person['name'], device['name'], error)
+                    written.append({'employee_id': person['employee_id'], 'pin': pin,
+                                    'ok': False, 'error': str(error)})
+                    continue
+                if pin not in uid_by_pin:
+                    uid_by_pin[pin] = uid
+                    candidate_uid += 1
+                written.append({'employee_id': person['employee_id'], 'pin': pin,
+                                'uid': uid, 'ok': True})
+        finally:
+            client.enable_device()
+    return written
+
+
 def read_punches(device):
     with device_connection(device) as client:
         raw_punches = client.get_attendance() or []

@@ -136,3 +136,88 @@ class ClearAllDataTest(unittest.TestCase):
         import inspect
         source = inspect.getsource(zk.base.ZK.clear_data)
         self.assertIn("command_string = ''", source)
+
+
+class WriteUsersTest(unittest.TestCase):
+
+    def setUp(self):
+        self.original_zk = device_client.ZK
+        self.device = {'name': 'Entrance', 'ip': '192.168.1.201', 'port': 4370}
+
+    def tearDown(self):
+        device_client.ZK = self.original_zk
+
+    def install(self, existing, failing_pins=()):
+        written = []
+
+        class User:
+            def __init__(self, uid, user_id):
+                self.uid = uid
+                self.user_id = user_id
+
+        class Stub:
+            disabled = False
+            enabled = False
+
+            def connect(self_inner):
+                return self_inner
+
+            def disconnect(self_inner):
+                pass
+
+            def get_users(self_inner):
+                return [User(uid, pin) for uid, pin in existing]
+
+            def disable_device(self_inner):
+                self_inner.disabled = True
+
+            def enable_device(self_inner):
+                self_inner.enabled = True
+
+            def set_user(self_inner, uid, name, privilege, password, group_id, user_id, card):
+                if user_id in failing_pins:
+                    raise RuntimeError('device refused')
+                written.append({'uid': uid, 'name': name, 'pin': user_id})
+
+        stub = Stub()
+        device_client.ZK = lambda *args, **kwargs: stub
+        return stub, written
+
+    def test_new_people_get_uids_after_the_highest_existing(self):
+        _, written = self.install(existing=[(1, '21'), (2, '105'), (3, '1457')])
+        device_client.write_users(self.device, [
+            {'employee_id': 7, 'pin': '1458', 'name': 'NEW ONE'},
+            {'employee_id': 8, 'pin': '1459', 'name': 'NEW TWO'},
+        ])
+        self.assertEqual([entry['uid'] for entry in written], [4, 5])
+
+    def test_existing_badge_keeps_its_uid_so_fingerprints_survive(self):
+        _, written = self.install(existing=[(1, '21'), (2, '105')])
+        device_client.write_users(self.device, [{'employee_id': 7, 'pin': '105', 'name': 'RENAMED'}])
+        self.assertEqual(written[0]['uid'], 2)
+
+    def test_nobody_elses_uid_is_touched(self):
+        _, written = self.install(existing=[(1, '21'), (2, '105')])
+        device_client.write_users(self.device, [{'employee_id': 7, 'pin': '999', 'name': 'NEW'}])
+        self.assertEqual([entry['pin'] for entry in written], ['999'])
+
+    def test_a_refused_write_is_reported_and_does_not_stop_the_rest(self):
+        _, written = self.install(existing=[], failing_pins={'111'})
+        results = device_client.write_users(self.device, [
+            {'employee_id': 1, 'pin': '111', 'name': 'BAD'},
+            {'employee_id': 2, 'pin': '222', 'name': 'GOOD'},
+        ])
+        self.assertFalse(results[0]['ok'])
+        self.assertTrue(results[1]['ok'])
+        self.assertEqual([entry['pin'] for entry in written], ['222'])
+
+    def test_device_is_locked_during_the_write_and_released_after(self):
+        stub, _ = self.install(existing=[])
+        device_client.write_users(self.device, [{'employee_id': 1, 'pin': '1', 'name': 'X'}])
+        self.assertTrue(stub.disabled)
+        self.assertTrue(stub.enabled)
+
+    def test_empty_list_writes_nothing(self):
+        _, written = self.install(existing=[(1, '21')])
+        self.assertEqual(device_client.write_users(self.device, []), [])
+        self.assertEqual(written, [])

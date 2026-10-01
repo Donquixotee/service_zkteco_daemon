@@ -1,6 +1,6 @@
 import logging
 
-from .device_client import read_punches
+from .device_client import read_punches, write_users
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ class DevicePoller:
 
     def poll_device(self, device):
         serial_number = device['serial_number']
+        self.push_pending_users(device)
         punches = read_punches(device)
         pending = self._punches_after_cursor(serial_number, punches)
         if not pending:
@@ -36,6 +37,21 @@ class DevicePoller:
             logger.warning("Device %s has punches for users not linked to any employee: %s",
                            device['name'], unmapped)
         self.cursors.advance(serial_number, max(punch['timestamp'] for punch in pending))
+
+    def push_pending_users(self, device):
+        serial_number = device['serial_number']
+        response = self.odoo.pending_users(serial_number)
+        if not isinstance(response, dict) or response.get('error'):
+            logger.error("Could not ask Odoo for new users of %s: %s", device['name'], response)
+            return
+        pending = response.get('pending') or []
+        if not pending:
+            return
+        logger.info("Device %s: %s employee(s) to add", device['name'], len(pending))
+        results = write_users(device, pending)
+        confirmation = self.odoo.confirm_users(serial_number, results)
+        logger.info("Device %s: Odoo linked %s, refused %s",
+                    device['name'], confirmation.get('created'), confirmation.get('failed'))
 
     def _punches_after_cursor(self, serial_number, punches):
         cursor = self.cursors.last_timestamp(serial_number)

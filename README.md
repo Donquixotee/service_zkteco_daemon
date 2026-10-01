@@ -277,20 +277,18 @@ firmware quirks (`force_udp`, COMM keys, K40 behaviour) surface.
 
 ## Adding an employee later
 
-Enrolling someone on a reader does **not** create them in Odoo. Punches from a device user who
-is not linked to an employee are counted, logged and discarded. The order is always:
+**HR only creates the employee in Odoo.** Nothing else is required of them:
 
-1. Create the employee in Odoo
-2. Give them a badge number (`tools/assign_badges.py`)
-3. Push them to the readers with **`tools/add_employee.py`**
-4. They enrol a fingerprint at each reader
+1. A badge number is assigned automatically on creation, continuing from the highest in use
+2. Each cycle the agent asks Odoo which employees are missing from its readers
+3. It writes them at the next free uid and reports back, and Odoo records the link
+4. The person enrols a fingerprint at each reader
 
-```powershell
-.venv\Scripts\python tools\add_employee.py --login <admin> --name "NEW EMPLOYEE"
-.venv\Scripts\python tools\add_employee.py --login <admin> --name "NEW EMPLOYEE" --apply
-```
+Nobody runs a command, and enrolling someone on a reader still never creates them in Odoo:
+punches from an unlinked device user are counted, logged and discarded.
 
-It appends the person at the next free uid and leaves everyone else untouched.
+`tools/add_employee.py` remains for pushing one person immediately rather than waiting for the
+next cycle, or for diagnosing a specific case.
 
 **Never re-run `provision_devices.py` on readers people have already enrolled on.** It assigns
 uids by alphabetical position, and fingerprint templates are stored against the uid, so adding
