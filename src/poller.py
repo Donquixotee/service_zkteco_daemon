@@ -7,16 +7,23 @@ logger = logging.getLogger(__name__)
 
 class DevicePoller:
 
-    def __init__(self, odoo_client, cursor_store):
+    def __init__(self, odoo_client, cursor_store, watchdog=None):
         self.odoo = odoo_client
         self.cursors = cursor_store
+        self.watchdog = watchdog
+
+    def _progress(self):
+        if self.watchdog:
+            self.watchdog.progress()
 
     def poll_all(self, devices):
         for device in devices:
+            self._progress()
             try:
                 self.poll_device(device)
             except Exception as error:
                 logger.error("Polling failed for device %s: %s", device.get('name'), error)
+            self._progress()
 
     def poll_device(self, device):
         serial_number = device['serial_number']

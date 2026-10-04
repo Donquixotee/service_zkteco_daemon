@@ -1,4 +1,6 @@
+import http.client
 import logging
+import socket
 import time
 import xmlrpc.client
 
@@ -10,6 +12,36 @@ RECEIVE_PUNCHES_METHOD = 'action_receive_punches'
 
 class OdooRPCError(Exception):
     pass
+
+
+class TimeoutTransport(xmlrpc.client.Transport):
+
+    def __init__(self, timeout):
+        super().__init__()
+        self.timeout = timeout
+
+    def make_connection(self, host):
+        connection = super().make_connection(host)
+        connection.timeout = self.timeout
+        return connection
+
+
+class TimeoutSafeTransport(xmlrpc.client.SafeTransport):
+
+    def __init__(self, timeout):
+        super().__init__()
+        self.timeout = timeout
+
+    def make_connection(self, host):
+        connection = super().make_connection(host)
+        connection.timeout = self.timeout
+        return connection
+
+
+def transport_for(url, timeout):
+    if url.lower().startswith('https'):
+        return TimeoutSafeTransport(timeout)
+    return TimeoutTransport(timeout)
 
 
 class OdooClient:
@@ -25,8 +57,10 @@ class OdooClient:
         self.retry_delay = retry_delay
         self.timeout = timeout
         self._uid = None
-        self._common = xmlrpc.client.ServerProxy('%s/xmlrpc/2/common' % self.url, allow_none=True)
-        self._models = xmlrpc.client.ServerProxy('%s/xmlrpc/2/object' % self.url, allow_none=True)
+        self._common = xmlrpc.client.ServerProxy('%s/xmlrpc/2/common' % self.url, allow_none=True,
+                                                 transport=transport_for(self.url, timeout))
+        self._models = xmlrpc.client.ServerProxy('%s/xmlrpc/2/object' % self.url, allow_none=True,
+                                                 transport=transport_for(self.url, timeout))
 
     @property
     def auth_password(self):
@@ -62,7 +96,7 @@ class OdooClient:
                     if attempt < self.max_retries:
                         continue
                 raise OdooRPCError("XML-RPC fault: %s" % message)
-            except (ConnectionError, TimeoutError, OSError) as error:
+            except (ConnectionError, TimeoutError, OSError, socket.timeout, http.client.HTTPException) as error:
                 logger.warning("Odoo RPC attempt %s/%s failed: %s", attempt, self.max_retries, error)
                 if attempt >= self.max_retries:
                     raise

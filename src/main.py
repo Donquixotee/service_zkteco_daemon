@@ -11,10 +11,13 @@ from dotenv import load_dotenv
 from .odoo_client import OdooClient
 from .poller import DevicePoller
 from .state import CursorStore
+from .watchdog import Watchdog
 
 logger = logging.getLogger('zkteco_agent')
 
 DEFAULT_POLL_INTERVAL = 300
+MINIMUM_STALL_LIMIT = 600
+STALL_LIMIT_MULTIPLIER = 4
 LOG_MAX_BYTES = 5 * 1024 * 1024
 LOG_BACKUP_COUNT = 5
 
@@ -94,18 +97,33 @@ def main():
     state_path = os.getenv('ZK_STATE_PATH') or daemon_settings.get('state_path', 'state.json')
 
     odoo = build_odoo_client(configuration.get('odoo_rpc', {}))
-    odoo.authenticate()
+    try:
+        odoo.authenticate()
+    except Exception as error:
+        logger.error("Could not reach Odoo at startup, will keep retrying: %s", error)
 
     poller = DevicePoller(odoo, CursorStore(state_path))
     shutdown = ShutdownSignal()
 
-    logger.info("Agent started for %s device(s), polling every %ss", len(devices), poll_interval)
+    stall_limit = max(MINIMUM_STALL_LIMIT, poll_interval * STALL_LIMIT_MULTIPLIER)
+    watchdog = Watchdog(stall_limit)
+    poller.watchdog = watchdog
+    watchdog.start()
+
+    logger.info("Agent started for %s device(s), polling every %ss, restarting if stalled for %ss",
+                len(devices), poll_interval, stall_limit)
     while not shutdown.requested:
-        poller.poll_all(devices)
+        watchdog.progress()
+        try:
+            poller.poll_all(devices)
+        except Exception as error:
+            logger.exception("Polling cycle failed, continuing: %s", error)
+        watchdog.progress()
         for _ in range(poll_interval):
             if shutdown.requested:
                 break
             time.sleep(1)
+    watchdog.stop()
     logger.info("Agent stopped")
 
 

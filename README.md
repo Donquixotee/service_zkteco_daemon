@@ -239,6 +239,21 @@ devices:
     ommit_ping: false         # true when ICMP is blocked but port 4370 is open
 ```
 
+## Surviving an Odoo outage
+
+The agent is built to keep running when Odoo is unreachable and to catch up by itself:
+
+- Every call to Odoo carries a socket timeout, so a connection that is accepted but never
+  answered fails in seconds instead of blocking forever. Without this the process stays alive
+  and idle, which Windows cannot detect, and only a manual restart recovers it.
+- A failed delivery never advances the cursor, so those punches are resent on the next cycle.
+- Odoo being down at startup is not fatal; the agent logs it and keeps retrying.
+- A watchdog exits the process if a cycle makes no progress for four poll intervals, or ten
+  minutes, whichever is longer. The service then restarts automatically, so any hang costs
+  about a minute instead of however long until somebody notices.
+
+Punches stay on the readers throughout, so an outage of hours or days loses nothing.
+
 ## How delivery stays safe
 
 - **The device log is never cleared.** `clear_attendance()` is never called, so punches remain
