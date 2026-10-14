@@ -16,6 +16,7 @@ devices:
     timeout: 30
     force_udp: false
     ommit_ping: false
+    allow_access_revocation: false
 
   - name: Exit
     serial_number: CQU2232260065
@@ -25,3 +26,4 @@ devices:
     timeout: 30
     force_udp: false
     ommit_ping: false
+    allow_access_revocation: false

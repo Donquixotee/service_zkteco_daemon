@@ -113,3 +113,11 @@ class OdooClient:
     def confirm_users(self, serial_number, results):
         return self.call(RECEIVE_PUNCHES_MODEL, 'action_confirm_device_users',
                          kwargs={'serial_number': serial_number, 'results': results})
+
+    def pending_revocations(self, serial_number):
+        return self.call(RECEIVE_PUNCHES_MODEL, 'action_pending_device_revocations',
+                         kwargs={'serial_number': serial_number})
+
+    def confirm_revocations(self, serial_number, results):
+        return self.call(RECEIVE_PUNCHES_MODEL, 'action_confirm_device_revocations',
+                         kwargs={'serial_number': serial_number, 'results': results})

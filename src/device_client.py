@@ -79,6 +79,50 @@ def write_users(device, people):
     return written
 
 
+def clear_credentials(client, user, templates):
+    for template in templates:
+        client.delete_user_template(uid=user.uid, temp_id=template.fid)
+    client.set_user(uid=user.uid, name=user.name, privilege=user.privilege, password='',
+                    group_id=user.group_id, user_id=str(user.user_id), card=0)
+    return len(templates)
+
+
+def revoke_access(device, people):
+    revoked = []
+    with device_connection(device) as client:
+        user_by_pin = {str(user.user_id): user for user in client.get_users() or []}
+        templates_by_uid = {}
+        for template in client.get_templates() or []:
+            templates_by_uid.setdefault(template.uid, []).append(template)
+        client.disable_device()
+        try:
+            for person in people:
+                pin = str(person['pin'])
+                user = user_by_pin.get(pin)
+                if user is None:
+                    logger.info("%s is not on %s any more, nothing to remove",
+                                person.get('name'), device['name'])
+                    revoked.append({'link_id': person['link_id'], 'ok': True, 'fingerprints': 0})
+                    continue
+                try:
+                    fingerprints = clear_credentials(client, user, templates_by_uid.get(user.uid, []))
+                except Exception as error:
+                    logger.error("Could not remove access for %s on %s: %s",
+                                 person.get('name'), device['name'], error)
+                    revoked.append({'link_id': person['link_id'], 'ok': False, 'error': str(error)})
+                    continue
+                logger.info("Removed access for %s on %s, %s fingerprint(s) deleted",
+                            person.get('name'), device['name'], fingerprints)
+                revoked.append({'link_id': person['link_id'], 'ok': True, 'fingerprints': fingerprints})
+        finally:
+            client.enable_device()
+            try:
+                client.refresh_data()
+            except Exception as error:
+                logger.debug("Could not refresh %s after revocation: %s", device['name'], error)
+    return revoked
+
+
 def read_punches(device):
     with device_connection(device) as client:
         raw_punches = client.get_attendance() or []

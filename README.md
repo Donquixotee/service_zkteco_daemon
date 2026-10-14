@@ -26,10 +26,12 @@ Devices reachable directly from Odoo do not need this agent: leave them on
 
 ## What it does and does not do
 
-Does: reads attendance punches and delivers them to Odoo, on a timer, idempotently.
+Does: reads attendance punches and delivers them to Odoo, on a timer, idempotently. Writes new
+employees onto the readers as Odoo asks for them, and clears a departed employee's credentials
+when that is switched on.
 
-Does **not**: write to the device. Card provisioning, user creation, fingerprint enrollment
-and offboarding still require Odoo to reach the device directly.
+Does **not**: enrol fingerprints. That is done by the person, at the reader. The agent can
+delete a fingerprint but can never create one, and Odoo never holds biometric data.
 
 ## Odoo setup
 
@@ -314,6 +316,40 @@ uids by alphabetical position, and fingerprint templates are stored against the 
 one name near the start of the alphabet shifts everybody after it and their fingerprints end up
 on the wrong people. The tool now refuses to do this unless `--wipe` or `--force-renumber` is
 given.
+
+## Taking access away when somebody leaves
+
+Where the readers unlock a door, an archived employee must stop being recognised. The reader
+holds its own copy of their credentials, so archiving in Odoo changes nothing by itself.
+
+Switch it on in **two** places, both of which must agree:
+
+- `allow_access_revocation: true` on the device in `config/daemon.yml`
+- **Remove Access When Archived** on the matching device record in Odoo
+
+Requiring both means a mistake in Odoo alone cannot cause deletions on the readers.
+
+Each cycle, **after** punches have been delivered and accepted, the agent asks Odoo who has
+been archived and still holds credentials, clears their **fingerprints, password and card
+number**, and reports back. The user record, name and badge number are left alone, so old
+punches still resolve to a name and the badge cannot be reissued to somebody else by accident.
+
+Punches are always delivered first. A punch made on somebody's last morning reaches Odoo before
+their credentials are touched.
+
+Preview before enabling anything:
+
+```bash
+python tools/preview_revocations.py --login <odoo login>
+```
+
+It prints who would be affected on each reader, with the number of fingerprints that would be
+deleted, and changes nothing.
+
+Fingerprints cannot be recovered — the agent can delete one but never create one. Anybody
+returning has to enrol again in person. Odoo sends at most twenty people per cycle and reports
+the rest, so a mass archive is visible in the log rather than applied all at once. Anything the
+reader refuses is reported as failed, left in the queue and retried next cycle.
 
 ## Field deployment
 
